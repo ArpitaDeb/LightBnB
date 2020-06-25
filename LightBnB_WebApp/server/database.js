@@ -1,3 +1,11 @@
+const { Client } = require('pg');
+
+const client = new Client({
+  user: 'vagrant',
+  password: '123',
+  host: 'localhost',
+  database: 'lightbnb'
+});
 const properties = require('./json/properties.json');
 const users = require('./json/users.json');
 
