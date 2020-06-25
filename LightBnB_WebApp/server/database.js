@@ -6,6 +6,9 @@ const client = new Client({
   host: 'localhost',
   database: 'lightbnb'
 });
+client.connect(() => {
+  console.log('successfully connected to the database');
+});
 const properties = require('./json/properties.json');
 const users = require('./json/users.json');
 
@@ -73,7 +76,7 @@ exports.getAllReservations = getAllReservations;
  * @param {{}} options An object containing query options.
  * @param {*} limit The number of results to return.
  * @return {Promise<[{}]>}  A promise to the properties.
- */
+ 
 const getAllProperties = function(options, limit = 10) {
   const limitedProperties = {};
   for (let i = 1; i <= limit; i++) {
@@ -82,7 +85,15 @@ const getAllProperties = function(options, limit = 10) {
   return Promise.resolve(limitedProperties);
 }
 exports.getAllProperties = getAllProperties;
-
+*/
+const getAllProperties = function(options, limit = 10) {
+  return client.query(`
+  SELECT * FROM properties
+  LIMIT $1
+  `, [limit])
+  .then(res => res.rows);
+}
+exports.getAllProperties = getAllProperties;
 
 /**
  * Add a property to the database
