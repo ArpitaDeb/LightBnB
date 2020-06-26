@@ -131,6 +131,11 @@ return client.query(`
   `, [limit])
   .then(res => res.rows);
 }
+if (options === null) {
+    queryString += `SELECT * FROM properties
+    LIMIT $1
+  `, [limit]
+  }
 exports.getAllProperties = getAllProperties;
 */
 const getAllProperties = function (options, limit = 10) {
@@ -140,12 +145,13 @@ const getAllProperties = function (options, limit = 10) {
   SELECT properties.*, avg(property_reviews.rating) as average_rating
   FROM properties
   JOIN property_reviews ON properties.id = property_id
+  WHERE true
   `;
 
   // 3
   if (options.city) {
     queryParams.push(`%${options.city}%`);
-    queryString += `WHERE city LIKE $${queryParams.length} `;
+    queryString += `AND city LIKE $${queryParams.length} `;
   }
 
   if (options.owner_id) {
@@ -159,19 +165,15 @@ const getAllProperties = function (options, limit = 10) {
     queryParams.push(parseInt(options.maximum_price_per_night));
     queryString += `AND cost_per_night <= $${queryParams.length} `;
   }
-  queryString += `GROUP BY properties.id`;
+  queryString += `GROUP BY properties.id `;
   if (options.minimum_rating) {
     queryParams.push(parseInt(options.minimum_rating));
     queryString += ` HAVING avg(property_reviews.rating) >= $${queryParams.length}`;
   }
   // 4
-  if (options === null) {
-    queryString += `SELECT * FROM properties
-    LIMIT $1
-  `, [limit]
-  }
+  
   queryParams.push(limit);
-  queryString += `ORDER BY cost_per_night
+  queryString += ` ORDER BY cost_per_night
   LIMIT $${queryParams.length};
   `;
   
@@ -189,11 +191,38 @@ exports.getAllProperties = getAllProperties;
  * Add a property to the database
  * @param {{}} property An object containing all of the property details.
  * @return {Promise<{}>} A promise to the property.
- */
-const addProperty = function (property) {
+ * const addProperty = function (property) {
   const propertyId = Object.keys(properties).length + 1;
   property.id = propertyId;
   properties[propertyId] = property;
   return Promise.resolve(property);
+}
+ */
+const addProperty = function (property) {
+  return client.query(`
+  INSERT INTO
+  properties (
+    title,
+    description,
+    owner_id,
+    cover_photo_url,
+    thumbnail_photo_url,
+    cost_per_night,
+    parking_spaces,
+    number_of_bathrooms,
+    number_of_bedrooms,
+    province,
+    city,
+    country,
+    street,
+    post_code
+  )
+  VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+  RETURNING *;`, [property.title, property.description, property.owner_id, property.cover_photo_url, property.thumbnail_photo_url, property.cost_per_night, property.parking_spaces, property.number_of_bathrooms, property.number_of_bedrooms, property.province, property.city, property.country, property.street, property.post_code])
+
+  .then(res => {
+    console.log(res.rows);
+    return res.rows;
+  });
 }
 exports.addProperty = addProperty;
