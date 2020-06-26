@@ -31,13 +31,13 @@ const getUserWithEmail = function(email) {
   return Promise.resolve(user);
 }
 */
-const getUserWithEmail = function(email) {
+const getUserWithEmail = function (email) {
   return client.query(`
   SELECT * FROM users WHERE email = $1;
   `, [email])
-  .then(res => res.rows[0]);
+    .then(res => res.rows[0]);
 }
- exports.getUserWithEmail = getUserWithEmail;
+exports.getUserWithEmail = getUserWithEmail;
 
 /**
  * Get a single user from the database given their id.
@@ -48,12 +48,12 @@ const getUserWithId = function(id) {
   return Promise.resolve(users[id]);
 }
 */
-const getUserWithId = function(id) {
+const getUserWithId = function (id) {
   return client.query(`
   SELECT * FROM users WHERE
   id = $1;
   `, [id])
-  .then(res => res.rows[0]);
+    .then(res => res.rows[0]);
 }
 exports.getUserWithId = getUserWithId;
 
@@ -69,12 +69,12 @@ const addUser =  function(user) {
   return Promise.resolve(user);
 }
 */
-const addUser =  function(user) {
+const addUser = function (user) {
   return client.query(`
   INSERT INTO users(name, password, email)
   VALUES($1, $2, $3)
   RETURNING *;`, [user.name, user.password, user.email])
-  .then(res => res.rows);
+    .then(res => res.rows);
 }
 exports.addUser = addUser;
 
@@ -88,7 +88,7 @@ const getAllReservations = function(guest_id, limit = 10) {
   return getAllProperties(null, 2);
 }
  */
-const getAllReservations = function(guest_id, limit = 10) {
+const getAllReservations = function (guest_id, limit = 10) {
   return client.query(`
   SELECT
   properties.*,
@@ -106,7 +106,7 @@ ORDER BY
   start_date
 LIMIT
   $2;`, [guest_id, limit])
-  .then(res => res.rows);
+    .then(res => res.rows);
 }
 exports.getAllReservations = getAllReservations;
 
@@ -125,15 +125,64 @@ const getAllProperties = function(options, limit = 10) {
   }
   return Promise.resolve(limitedProperties);
 }
-exports.getAllProperties = getAllProperties;
-*/
-const getAllProperties = function(options, limit = 10) {
-  return client.query(`
+return client.query(`
   SELECT * FROM properties
   LIMIT $1
   `, [limit])
   .then(res => res.rows);
 }
+exports.getAllProperties = getAllProperties;
+*/
+const getAllProperties = function (options, limit = 10) {
+  const queryParams = [];
+  // 2
+  let queryString = `
+  SELECT properties.*, avg(property_reviews.rating) as average_rating
+  FROM properties
+  JOIN property_reviews ON properties.id = property_id
+  `;
+
+  // 3
+  if (options.city) {
+    queryParams.push(`%${options.city}%`);
+    queryString += `WHERE city LIKE $${queryParams.length} `;
+  }
+
+  if (options.owner_id) {
+    queryParams.push(parseInt(options.owner_id));
+    queryString += `AND owner_id = $${queryParams.length} `;
+  }
+
+  if (options.minimum_price_per_night && options.maximum_price_per_night) {
+    queryParams.push(parseInt(options.minimum_price_per_night));
+    queryString += `AND cost_per_night >= $${queryParams.length} `;
+    queryParams.push(parseInt(options.maximum_price_per_night));
+    queryString += `AND cost_per_night <= $${queryParams.length} `;
+  }
+  queryString += `GROUP BY properties.id`;
+  if (options.minimum_rating) {
+    queryParams.push(parseInt(options.minimum_rating));
+    queryString += ` HAVING avg(property_reviews.rating) >= $${queryParams.length}`;
+  }
+  // 4
+  if (options === null) {
+    queryString += `SELECT * FROM properties
+    LIMIT $1
+  `, [limit]
+  }
+  queryParams.push(limit);
+  queryString += `ORDER BY cost_per_night
+  LIMIT $${queryParams.length};
+  `;
+  
+  // 5
+  console.log(queryString, queryParams);
+
+  // 6
+  return client.query(queryString, queryParams)
+    .then(res => res.rows);
+}
+
 exports.getAllProperties = getAllProperties;
 
 /**
@@ -141,7 +190,7 @@ exports.getAllProperties = getAllProperties;
  * @param {{}} property An object containing all of the property details.
  * @return {Promise<{}>} A promise to the property.
  */
-const addProperty = function(property) {
+const addProperty = function (property) {
   const propertyId = Object.keys(properties).length + 1;
   property.id = propertyId;
   properties[propertyId] = property;
