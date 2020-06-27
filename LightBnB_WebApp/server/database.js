@@ -1,16 +1,6 @@
-const { Client } = require('pg');
-
-const client = new Client({
-  user: 'vagrant',
-  password: '123',
-  host: 'localhost',
-  database: 'lightbnb'
-});
-client.connect(() => {
-  console.log('successfully connected to the database');
-});
 const properties = require('./json/properties.json');
 const users = require('./json/users.json');
+const db = require('../db/index');
 
 /// Users
 
@@ -25,6 +15,11 @@ const getUserWithEmail = function(email) {
     if (user.email.toLowerCase() === email.toLowerCase()) {
       break;
     } else {
+      .then(res => res.rows[0]);
+      .then(res => {
+      console.log(res.rows);
+      return res.rows;
+    });
       user = null;
     }
   }
@@ -32,10 +27,13 @@ const getUserWithEmail = function(email) {
 }
 */
 const getUserWithEmail = function (email) {
-  return client.query(`
+  return db.query(`
   SELECT * FROM users WHERE email = $1;
   `, [email])
-    .then(res => res.rows[0]);
+    .then(res => {
+      console.log(res);
+      return res.rowCount > 0 ? res.rows[0] : null
+    });
 }
 exports.getUserWithEmail = getUserWithEmail;
 
@@ -49,7 +47,7 @@ const getUserWithId = function(id) {
 }
 */
 const getUserWithId = function (id) {
-  return client.query(`
+  return db.query(`
   SELECT * FROM users WHERE
   id = $1;
   `, [id])
@@ -67,14 +65,18 @@ const addUser =  function(user) {
   user.id = userId;
   users[userId] = user;
   return Promise.resolve(user);
+  .then(res => {
+    console.log(res.rows);
+    return res.rows;
+  });
 }
 */
 const addUser = function (user) {
-  return client.query(`
+  return db.query(`
   INSERT INTO users(name, password, email)
   VALUES($1, $2, $3)
   RETURNING *;`, [user.name, user.password, user.email])
-    .then(res => res.rows);
+  .then(res => res.rows); 
 }
 exports.addUser = addUser;
 
@@ -89,7 +91,7 @@ const getAllReservations = function(guest_id, limit = 10) {
 }
  */
 const getAllReservations = function (guest_id, limit = 10) {
-  return client.query(`
+  return db.query(`
   SELECT
   properties.*,
   reservations.*,
@@ -125,7 +127,7 @@ const getAllProperties = function(options, limit = 10) {
   }
   return Promise.resolve(limitedProperties);
 }
-return client.query(`
+return db.query(`
   SELECT * FROM properties
   LIMIT $1
   `, [limit])
@@ -171,17 +173,17 @@ const getAllProperties = function (options, limit = 10) {
     queryString += ` HAVING avg(property_reviews.rating) >= $${queryParams.length}`;
   }
   // 4
-  
+
   queryParams.push(limit);
   queryString += ` ORDER BY cost_per_night
   LIMIT $${queryParams.length};
   `;
-  
+
   // 5
   console.log(queryString, queryParams);
 
   // 6
-  return client.query(queryString, queryParams)
+  return db.query(queryString, queryParams)
     .then(res => res.rows);
 }
 
@@ -199,7 +201,7 @@ exports.getAllProperties = getAllProperties;
 }
  */
 const addProperty = function (property) {
-  return client.query(`
+  return db.query(`
   INSERT INTO
   properties (
     title,
@@ -220,9 +222,9 @@ const addProperty = function (property) {
   VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
   RETURNING *;`, [property.title, property.description, property.owner_id, property.cover_photo_url, property.thumbnail_photo_url, property.cost_per_night, property.parking_spaces, property.number_of_bathrooms, property.number_of_bedrooms, property.province, property.city, property.country, property.street, property.post_code])
 
-  .then(res => {
-    console.log(res.rows);
-    return res.rows;
-  });
+    .then(res => {
+      console.log(res.rows);
+      return res.rows;
+    });
 }
 exports.addProperty = addProperty;
